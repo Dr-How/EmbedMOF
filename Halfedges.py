@@ -114,7 +114,7 @@ output_data = {
     "vertices": vertices.tolist(),
     "halfedges": halfedges,
     "inversions": inversions,
-    "rotations": []
+    "normals": []
 }
 
 with open("network_data.json", "w") as f:

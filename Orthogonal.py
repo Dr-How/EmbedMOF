@@ -20,11 +20,10 @@ for v in range(len(vertices)):
             neighbors.append(edge_vector)
     neighbors = np.array(neighbors)
 
-    cross_products = [np.cross(neighbors[0], neighbors[i]) for i in range(1, len(neighbors))]
-    norms = [np.linalg.norm(cp) for cp in cross_products]
-    max_idx = np.argmax(norms)
-    normal = cross_products[max_idx]
-    normals.append(normal/np.linalg.norm(normal))
+    _, _, vh = np.linalg.svd(neighbors)
+    normal = vh[-1]
+    normal = normal / np.linalg.norm(normal)
+    normals.append(normal)
 
 for h in range(len(halfedges)):
     v1 = halfedges[h][0]

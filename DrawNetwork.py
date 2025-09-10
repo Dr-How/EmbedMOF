@@ -14,6 +14,7 @@ with open("network_data.json") as f:
 angle_x, angle_y = 0, 0
 mouse_x, mouse_y = 0, 0
 is_dragging = False
+zoom = -10  # initial zoom level
 
 def setup_gl():
     glEnable(GL_DEPTH_TEST)
@@ -47,21 +48,18 @@ def draw_vertex(v, size=0.05):
 def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
-    
-    glTranslatef(0, 0, -10)
+    glTranslatef(0, 0, zoom)
     glRotatef(angle_x, 1, 0, 0)
     glRotatef(angle_y, 0, 1, 0)
 
     centering()
-    # glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    # glEnable(GL_BLEND)
     for hh in halfedges:
         v1 = vertices[hh[0]]
         v2 = np.array(vertices[hh[1]]) + np.dot(hh[-1], periods);
         draw_line(v1, (v1+v2)/2)
     for vv in vertices:
         draw_vertex(vv)
-    # glDisable(GL_BLEND)
+
     glfw.swap_buffers(window)
 
 def init_gl():
@@ -92,6 +90,11 @@ def on_mouse_move(window, xpos, ypos):
         mouse_x, mouse_y = xpos, ypos
         display()
 
+def on_scroll(window, xoffset, yoffset):
+    global zoom
+    zoom += yoffset  # yoffset is positive for scroll up, negative for scroll down
+    display()
+
 def main():
     global window
     if not glfw.init():
@@ -105,6 +108,7 @@ def main():
     glfw.make_context_current(window)
     glfw.set_mouse_button_callback(window, on_mouse_button)
     glfw.set_cursor_pos_callback(window, on_mouse_move)
+    glfw.set_scroll_callback(window, on_scroll)
     
     init_gl()
 
