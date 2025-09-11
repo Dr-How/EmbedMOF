@@ -71,7 +71,8 @@ str_edges = lines[key_lines[2] + 1 : key_lines[3]]
 split_edges = [edge.split() for edge in str_edges]
 edges = [[list(map(float, edge[:3])), list(map(float, edge[4:7]))] for edge in split_edges]
 edges = [[tuple(edge_part) for edge_part in edge] for edge in edges]
-print(edges)
+for edge in edges:
+    print(edge)
 halfedges = []
 inversions = []
 
@@ -82,6 +83,8 @@ def find_vertex_index(target, vertices, tol=1e-3):
         if np.allclose(v, target, atol=tol):
             return i
     return None
+
+print(len(edges))
 
 for e, edge in enumerate(edges):
     try:
@@ -95,7 +98,7 @@ for e, edge in enumerate(edges):
         nonzero = any(c != 0 for c in cell)
         if v1 is None or v2 is None:
             raise ValueError(f"Edge {edge}: vertex not found for {vertex1} or {vertex2}")
-        if v1 != v2 or (v1 == v2 and nonzero):
+        if v1 < v2 or (v1 == v2 and nonzero):
             halfedges.append([v1, v2, cell])
             halfedges.append([v2, v1, [-c for c in cell]])
             inversions.extend([len(halfedges)-1, len(halfedges) - 2])

@@ -31,7 +31,6 @@ for v in range(len(vertices)):
     normals.append(normal)
 
 visited = [False] * len(vertices)
-flipped = [False] * len(vertices)
 
 success = True
 
@@ -46,7 +45,6 @@ def dfs(v):
                 success = False
                 return
             normals[u] = -u_normal
-            flipped[u] = not flipped[u]
         if not visited[u]:
             dfs(u)
 
