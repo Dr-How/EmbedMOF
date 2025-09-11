@@ -51,4 +51,3 @@ def write_stl(triangles, filename):
         f.write("endsolid surface_model\n")
 
 write_stl(triangles, modelfile)
-print("STL file written: surface_model.stl")
