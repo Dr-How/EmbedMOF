@@ -194,7 +194,7 @@ def main():
     if not glfw.init():
         sys.exit(1)
 
-    window = glfw.create_window(800, 800, "2D Networks", None, None)
+    window = glfw.create_window(800, 800, "3D Surfaces", None, None)
     if not window:
         glfw.terminate()
         sys.exit(1)
