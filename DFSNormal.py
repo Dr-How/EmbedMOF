@@ -32,23 +32,24 @@ for v in range(len(vertices)):
 
 visited = [False] * len(vertices)
 
-success = True
-
 def dfs(v):
     visited[v] = True
     v_normal = normals[v]
+    success = True
     for u, _ in adj[v]:
         u_normal = normals[u]
         dot = np.dot(v_normal, u_normal)
         if dot <= 0:
             if visited[u]:
                 success = False
-                return
-            normals[u] = -u_normal
+                break
+            else:
+                normals[u] = -u_normal
         if not visited[u]:
-            dfs(u)
+            success = success and dfs(u)
+    return success
 
-dfs(0)
+success = dfs(0)
 
 if success:
     print("true")

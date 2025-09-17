@@ -12,9 +12,6 @@ with open("surface_data.json") as f:
     halfedges = data["halfedges"]
     faces = data["faces"]
 
-for f in faces:
-    print(f)
-
 angle_x, angle_y = 0, 0
 mouse_x, mouse_y = 0, 0
 is_dragging = False
@@ -49,9 +46,54 @@ def draw_vertex(v, size=0.1):
     gluDeleteQuadric(quadric)
     glPopMatrix()
 
+def draw_triangle(v1, v2, v3, color=(0.5, 0.8, 1.0, 0.5)):
+    glColor4fv(color)
+    glBegin(GL_TRIANGLES)
+    glVertex3fv(v1)
+    glVertex3fv(v2)
+    glVertex3fv(v3)
+    glEnd()
+    # Draw triangle edges in white
+    glColor3f(1.0, 1.0, 1.0)
+    glLineWidth(1.0)
+    glBegin(GL_LINES)
+    glVertex3fv(v1)
+    glVertex3fv(v2)
+    glVertex3fv(v2)
+    glVertex3fv(v3)
+    glVertex3fv(v3)
+    glVertex3fv(v1)
+    glEnd()
+
+def draw_polygon(vlist, color=(0.5, 0.8, 1.0, 0.5)):
+    center = np.mean(vlist, axis=0)
+    n = len(vlist)
+    for i in range(n):
+        draw_triangle(center, vlist[i], vlist[(i+1)%n], color)
+
+def find_dup(verts, tol=1e-6):
+    n = len(verts)
+    for length in range(2, n//2+1):
+        for i in range(n):
+            sub = [verts[(i+k)%n] for k in range(length)]
+            for j in range(n):
+                if j == i:
+                    continue
+                match = True
+                for k in range(length):
+                    if not np.allclose(verts[(j+k)%n], sub[-(k+1)], atol=tol):
+                        match = False
+                        break
+                if match:
+                    i1 = i
+                    j1 = (i+length-1)%n
+                    i2 = j
+                    j2 = (j+length-1)%n
+                    return i1, j1, i2, j2
+    return None
+
 def draw_face(face, color=(0.5, 0.8, 1.0, 0.5)):
     glColor4fv(color)
-    # Compute the vertices of the face
     cell = [0, 0, 0]
     verts = []
     for h_idx in face:
@@ -60,32 +102,43 @@ def draw_face(face, color=(0.5, 0.8, 1.0, 0.5)):
         v = np.array(vertices[v_idx]) + np.dot(cell, periods)
         verts.append(v)
         cell = [c + d for c, d in zip(cell, h[2])]
-    verts = np.array(verts)
-    center = np.mean(verts, axis=0)
-    # Draw triangles from center to each edge
-    glBegin(GL_TRIANGLES)
-    n = len(verts)
-    for i in range(n):
-        glVertex3fv(center)
-        glVertex3fv(verts[i])
-        glVertex3fv(verts[(i+1)%n])
-    glEnd()
-    # Draw triangle edges
-    glColor3f(1.0, 1.0, 1.0)
-    glLineWidth(1.0)
-    glBegin(GL_LINES)
-    for i in range(n):
-        glVertex3fv(verts[(i+1)%n])
-        glVertex3fv(center)
-        glVertex3fv(verts[i])
-        glVertex3fv(center)
-    glEnd()
+    verts_list = list(verts)
+    # print(verts_list)
+    while True:
+        dup = find_dup(verts_list)
+        if not dup:
+            break
+        i1, j1, i2, j2 = dup
+
+        n = len(verts_list)
+        # Rotate verts_list so that i1 == 1
+        shift = (i1 - 1) % n
+        verts_list = verts_list[shift:] + verts_list[:shift]
+        # Update indices after rotation
+        i1 = 1
+        j1 = (j1 - shift) % n
+        i2 = (i2 - shift) % n
+        j2 = (j2 - shift) % n
+
+        # Draw polygons for the two duplicate sublists
+        poly1 = verts_list[i1-1:j1+2]
+        draw_polygon(poly1, color)
+        poly2 = verts_list[i2-1:j2+2]
+        draw_polygon(poly2, color)
+        # Remove the duplicate sublists (second occurrence first)
+        for _ in range(i2, j2+1):
+            verts_list.pop(i2 % len(verts_list))
+        for _ in range(i1, j1+1):
+            verts_list.pop(i1 % len(verts_list))
+    # Draw polygon for remaining vertices
+    if len(verts_list) > 2:
+        draw_polygon(verts_list, color)
+    # Draw boundary of the face
     glColor3f(0.0, 0.0, 0.0)
-    glLineWidth(2.0)
-    glBegin(GL_LINES)
-    for i in range(n):
-        glVertex3fv(verts[(i+1)%n])
-        glVertex3fv(verts[i])
+    glLineWidth(8.0)
+    glBegin(GL_LINE_LOOP)
+    for v in verts:
+        glVertex3fv(v)
     glEnd()
 
 def display():

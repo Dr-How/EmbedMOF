@@ -2,12 +2,12 @@ import json
 import numpy as np
 import sys
 
+if len(sys.argv) < 2:
+    print("Usage: python ExportSTL.py <network_name>")
+    sys.exit(1)
+
 network_name = sys.argv[1]
 modelfile = f"models/{network_name}.stl"
-
-if len(sys.argv) < 2:
-    print("Usage: python RotationSystem3D.py <network_name>")
-    sys.exit(1)
 
 with open("surface_data.json") as f:
     data = json.load(f)
@@ -15,6 +15,35 @@ with open("surface_data.json") as f:
     vertices = data["vertices"]
     halfedges = data["halfedges"]
     faces = data["faces"]
+
+def find_dup(verts, tol=1e-6):
+    n = len(verts)
+    for length in range(2, n//2+1):
+        for i in range(n):
+            sub = [verts[(i+k)%n] for k in range(length)]
+            for j in range(n):
+                if j == i:
+                    continue
+                match = True
+                for k in range(length):
+                    if not np.allclose(verts[(j+k)%n], sub[-(k+1)], atol=tol):
+                        match = False
+                        break
+                if match:
+                    i1 = i
+                    j1 = (i+length-1)%n
+                    i2 = j
+                    j2 = (j+length-1)%n
+                    return i1, j1, i2, j2
+    return None
+
+def triangulate_polygon(vlist):
+    center = np.mean(vlist, axis=0)
+    n = len(vlist)
+    tris = []
+    for i in range(n):
+        tris.append([center, vlist[i], vlist[(i+1)%n]])
+    return tris
 
 triangles = []
 for face in faces:
@@ -26,11 +55,37 @@ for face in faces:
         v = np.array(vertices[v_idx]) + np.dot(cell, periods)
         verts.append(v)
         cell = [c + d for c, d in zip(cell, h[2])]
-    verts = np.array(verts)
-    center = np.mean(verts, axis=0)
-    n = len(verts)
-    for i in range(n):
-        triangles.append([center, verts[i], verts[(i+1)%n]])
+    verts_list = list(verts)
+    while True:
+        dup = find_dup(verts_list)
+        if not dup:
+            break
+        i1, j1, i2, j2 = dup
+        n = len(verts_list)
+        # Rotate verts_list so that i1 == 1
+        shift = (i1 - 1) % n
+        verts_list = verts_list[shift:] + verts_list[:shift]
+        # Update indices after rotation
+        i1 = 1
+        j1 = (j1 - shift) % n
+        i2 = (i2 - shift) % n
+        j2 = (j2 - shift) % n
+        # Ensure i1 < j1 < i2 < j2
+        if i2 < j1:
+            i1, j1, i2, j2 = i2, j2, i1, j1
+        # Triangulate polygons for the two duplicate sublists
+        poly1 = [verts_list[(k)%len(verts_list)] for k in range(i1-1, j1+2)]
+        triangles.extend(triangulate_polygon(poly1))
+        poly2 = [verts_list[(k)%len(verts_list)] for k in range(i2-1, j2+2)]
+        triangles.extend(triangulate_polygon(poly2))
+        # Remove the duplicate sublists (second occurrence first)
+        for _ in range(i2, j2+1):
+            verts_list.pop(i2 % len(verts_list))
+        for _ in range(i1, j1+1):
+            verts_list.pop(i1 % len(verts_list))
+    # Triangulate polygon for remaining vertices
+    if len(verts_list) > 2:
+        triangles.extend(triangulate_polygon(verts_list))
 
 def write_stl(triangles, filename):
     with open(filename, "w") as f:

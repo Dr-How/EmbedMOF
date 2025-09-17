@@ -1,0 +1,1 @@
+* bpt correct faces but not correctly drawn.  Need to treat the situation where a face cycle visit some vertices more than once.
