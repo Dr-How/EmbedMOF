@@ -54,7 +54,7 @@ def draw_triangle(v1, v2, v3, color=(0.5, 0.8, 1.0, 0.5)):
     glVertex3fv(v3)
     glEnd()
     # Draw triangle edges in white
-    glColor3f(1.0, 1.0, 1.0)
+    glColor3f(0.0, 0.0, 0.0)
     glLineWidth(1.0)
     glBegin(GL_LINES)
     glVertex3fv(v1)
@@ -153,6 +153,8 @@ def display():
         draw_vertex(vv)
     for ff in faces:
         draw_face(ff)
+    # draw_face(faces[0])
+    # draw_face(faces[1], color=(1.0, 0.5, 0.5, 0.5))
 
     glfw.swap_buffers(window)
 

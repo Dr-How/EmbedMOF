@@ -1,1 +1,2 @@
-* etm, etk, gwe, nvb strange!
+* etm, nvb: the single face cannot be embedded.
+* etk, gwe: because of the acute angle condition.
