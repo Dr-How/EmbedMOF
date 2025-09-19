@@ -24,7 +24,7 @@ File list
     - `check_all_models`: Check embeddedness for all STLs in the `models` directory.
 
 * Data files:
-    - `rcsr3d.{cgd, arc}`: Data base of 3D networks from RCSR.
+    - `rcsr3d.{cgd, arc}`: Database of 3D networks from RCSR.
     - `symbols.dat`: list of network names in the `.cgd` database.
     - `symbols-large.dat`: list of a few networks that are too large (typically > 1.0Kb) to proceed.
     - `coplanar-*.dat`: list of locally planar networks.  * could be barycentric or relaxed, depending on the embedding method.
