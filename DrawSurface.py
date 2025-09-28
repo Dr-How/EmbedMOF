@@ -92,6 +92,30 @@ def find_dup(verts, tol=1e-6):
                     return i1, j1, i2, j2
     return None
 
+def draw_band(face, color=(0.5, 0.8, 1.0, 0.5)):
+    glColor4fv(color)
+    cell = [0, 0, 0]
+    verts = []
+    for h_idx in face:
+        h = halfedges[h_idx]
+        v_idx = h[0]
+        v = np.array(vertices[v_idx]) + np.dot(cell, periods)
+        verts.append(v)
+        cell = [c + d for c, d in zip(cell, h[2])]
+    verts_list = list(verts)
+    dir = np.dot(cell, periods)
+    dir = np.array(dir)
+    dir = dir / np.linalg.norm(dir)
+    # Project all verts_list onto the line through the center with direction dir
+    center = np.mean(verts_list, axis=0)
+    projected_verts = []
+    for i, v in enumerate(verts_list):
+        v = np.array(v)
+        t = np.dot(v - center, dir)
+        projected_verts.append(center + t * dir)
+    for i in range(len(verts_list)-1):
+        draw_polygon([verts_list[i], verts_list[i+1], projected_verts[i+1], projected_verts[i]], color = color)
+
 def draw_face(face, color=(0.5, 0.8, 1.0, 0.5)):
     glColor4fv(color)
     cell = [0, 0, 0]
@@ -141,6 +165,17 @@ def draw_face(face, color=(0.5, 0.8, 1.0, 0.5)):
         glVertex3fv(v)
     glEnd()
 
+def trivial(face):
+    cell = [0, 0, 0]
+    verts = []
+    for h_idx in face:
+        h = halfedges[h_idx]
+        v_idx = h[0]
+        v = np.array(vertices[v_idx]) + np.dot(cell, periods)
+        verts.append(v)
+        cell = [c + d for c, d in zip(cell, h[2])]
+    return all(c == 0 for c in cell)
+
 def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -152,7 +187,10 @@ def display():
     for vv in vertices:
         draw_vertex(vv)
     for ff in faces:
-        draw_face(ff)
+        if trivial(ff):
+            draw_face(ff)
+        else:
+            draw_band(ff)
     # draw_face(faces[0])
     # draw_face(faces[1], color=(1.0, 0.5, 0.5, 0.5))
 

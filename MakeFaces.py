@@ -69,11 +69,11 @@ for f in faces:
         trivial_faces = False
         break
 
+data.pop("normals", None)
+data["faces"] = faces
+with open("surface_data.json", "w") as f:
+    json.dump(data, f, indent=2)
 if trivial_faces:
-    data.pop("normals", None)
-    data["faces"] = faces
-    with open("surface_data.json", "w") as f:
-        json.dump(data, f, indent=2)
     print("true")
 else:
     print("false")
