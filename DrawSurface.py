@@ -4,6 +4,7 @@ import glfw
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
+import sys
 
 with open("surface_data.json") as f:
     data = json.load(f)
@@ -65,12 +66,6 @@ def draw_triangle(v1, v2, v3, color=(0.5, 0.8, 1.0, 0.5)):
     glVertex3fv(v1)
     glEnd()
 
-def draw_polygon(vlist, color=(0.5, 0.8, 1.0, 0.5)):
-    center = np.mean(vlist, axis=0)
-    n = len(vlist)
-    for i in range(n):
-        draw_triangle(center, vlist[i], vlist[(i+1)%n], color)
-
 def find_dup(verts, tol=1e-6):
     n = len(verts)
     for length in range(2, n//2+1):
@@ -92,7 +87,13 @@ def find_dup(verts, tol=1e-6):
                     return i1, j1, i2, j2
     return None
 
-def draw_band(face, color=(0.5, 0.8, 1.0, 0.5)):
+def draw_polygon(vlist, color=(0.5, 0.8, 1.0, 0.5)):
+    center = np.mean(vlist, axis=0)
+    n = len(vlist)
+    for i in range(n):
+        draw_triangle(center, vlist[i], vlist[(i+1)%n], color)
+
+def draw_band(face, color=(0.8, 0.5, 1.0, 0.5)):
     glColor4fv(color)
     cell = [0, 0, 0]
     verts = []
@@ -165,17 +166,6 @@ def draw_face(face, color=(0.5, 0.8, 1.0, 0.5)):
         glVertex3fv(v)
     glEnd()
 
-def trivial(face):
-    cell = [0, 0, 0]
-    verts = []
-    for h_idx in face:
-        h = halfedges[h_idx]
-        v_idx = h[0]
-        v = np.array(vertices[v_idx]) + np.dot(cell, periods)
-        verts.append(v)
-        cell = [c + d for c, d in zip(cell, h[2])]
-    return all(c == 0 for c in cell)
-
 def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -186,11 +176,15 @@ def display():
     centering()
     for vv in vertices:
         draw_vertex(vv)
-    for ff in faces:
-        if trivial(ff):
-            draw_face(ff)
+    for face in faces:
+        cell = [0, 0, 0]
+        for h_idx in face:
+            h = halfedges[h_idx]
+            cell = [c + d for c, d in zip(cell, h[2])]
+        if all(c == 0 for c in cell):
+            draw_face(face)
         else:
-            draw_band(ff)
+            draw_band(face)
     # draw_face(faces[0])
     # draw_face(faces[1], color=(1.0, 0.5, 0.5, 0.5))
 

@@ -37,16 +37,38 @@ def find_dup(verts, tol=1e-6):
                     return i1, j1, i2, j2
     return None
 
-def triangulate_polygon(vlist):
+triangles = []
+
+def draw_polygon(vlist):
     center = np.mean(vlist, axis=0)
     n = len(vlist)
-    tris = []
     for i in range(n):
-        tris.append([center, vlist[i], vlist[(i+1)%n]])
-    return tris
+        triangles.append([center, vlist[i], vlist[(i+1)%n]])
 
-triangles = []
-for face in faces:
+def draw_band(face):
+    cell = [0, 0, 0]
+    verts = []
+    for h_idx in face:
+        h = halfedges[h_idx]
+        v_idx = h[0]
+        v = np.array(vertices[v_idx]) + np.dot(cell, periods)
+        verts.append(v)
+        cell = [c + d for c, d in zip(cell, h[2])]
+    verts_list = list(verts)
+    dir = np.dot(cell, periods)
+    dir = np.array(dir)
+    dir = dir / np.linalg.norm(dir)
+    # Project all verts_list onto the line through the center with direction dir
+    center = np.mean(verts_list, axis=0)
+    projected_verts = []
+    for i, v in enumerate(verts_list):
+        v = np.array(v)
+        t = np.dot(v - center, dir)
+        projected_verts.append(center + t * dir)
+    for i in range(len(verts_list)-1):
+        draw_polygon([verts_list[i], verts_list[i+1], projected_verts[i+1], projected_verts[i]])
+
+def draw_face(face):
     cell = [0, 0, 0]
     verts = []
     for h_idx in face:
@@ -75,9 +97,9 @@ for face in faces:
             i1, j1, i2, j2 = i2, j2, i1, j1
         # Triangulate polygons for the two duplicate sublists
         poly1 = [verts_list[(k)%len(verts_list)] for k in range(i1-1, j1+2)]
-        triangles.extend(triangulate_polygon(poly1))
+        draw_polygon(poly1)
         poly2 = [verts_list[(k)%len(verts_list)] for k in range(i2-1, j2+2)]
-        triangles.extend(triangulate_polygon(poly2))
+        draw_polygon(poly2)
         # Remove the duplicate sublists (second occurrence first)
         for _ in range(i2, j2+1):
             verts_list.pop(i2 % len(verts_list))
@@ -85,7 +107,17 @@ for face in faces:
             verts_list.pop(i1 % len(verts_list))
     # Triangulate polygon for remaining vertices
     if len(verts_list) > 2:
-        triangles.extend(triangulate_polygon(verts_list))
+        draw_polygon(verts_list)
+
+for face in faces:
+    cell = [0, 0, 0]
+    for h_idx in face:
+        h = halfedges[h_idx]
+        cell = [c + d for c, d in zip(cell, h[2])]
+    if all(c == 0 for c in cell):
+        draw_face(face)
+    else:
+        draw_band(face)
 
 def write_stl(triangles, filename):
     with open(filename, "w") as f:

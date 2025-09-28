@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import trimesh
 eps = 1e-8
 
 def read_stl(filename):
@@ -12,56 +13,68 @@ def read_stl(filename):
                 verts = []
     return triangles
 
-def edge_edge(V0, V1, U0, U1):
-    v, u = V1-V0, U1-U0
-    a, b, c = np.dot(v,v), np.dot(v,u), np.dot(u,u)
-    w0 = V0-U0
-    d, e = np.dot(v,w0), np.dot(u,w0)
-    denom = a*c - b*b
-    if abs(denom) < eps:
+def tri_tri_intersect(tri1, tri2):
+    # Return False if triangles just share an edge (and are not coplanar)
+    def share_edge(t1, t2):
+        # Check all pairs of edges
+        for i in range(3):
+            a1, a2 = t1[i], t1[(i+1)%3]
+            for j in range(3):
+                b1, b2 = t2[j], t2[(j+1)%3]
+                if (np.linalg.norm(a1-b1)<eps and np.linalg.norm(a2-b2)<eps) or (np.linalg.norm(a1-b2)<eps and np.linalg.norm(a2-b1)<eps):
+                    return True
         return False
-    s, t = (b*e-c*d)/denom, (a*e-b*d)/denom
-    if not (eps < s < 1-eps and eps < t < 1-eps):
+    # Check coplanarity
+    def is_coplanar(t1, t2):
+        n1 = np.cross(t1[1]-t1[0], t1[2]-t1[0])
+        n2 = np.cross(t2[1]-t2[0], t2[2]-t2[0])
+        n1 = n1 / np.linalg.norm(n1)
+        n2 = n2 / np.linalg.norm(n2)
+        return np.linalg.norm(n1-n2) < eps or np.linalg.norm(n1+n2) < eps
+    if share_edge(tri1, tri2) and not is_coplanar(tri1, tri2):
         return False
-    return np.linalg.norm((V0+s*v)-(U0+t*u)) < eps
+    # Return False if triangles are exactly the same (all vertices match within eps)
+    def triangles_equal(t1, t2):
+        # Check all permutations
+        for perm in [(0,1,2),(0,2,1),(1,0,2),(1,2,0),(2,0,1),(2,1,0)]:
+            if all(np.linalg.norm(t1[i]-t2[perm[i]]) < eps for i in range(3)):
+                return True
+        return False
+    if triangles_equal(tri1, tri2):
+        return False
+    # Return False if triangles are exactly the same (all vertices match within eps)
+    def triangles_equal(t1, t2):
+        for perm in [(0,1,2),(0,2,1),(1,0,2),(1,2,0),(2,0,1),(2,1,0)]:
+            if all(np.linalg.norm(t1[i]-t2[perm[i]]) < eps for i in range(3)):
+                return True
+        return False
+    if triangles_equal(tri1, tri2):
+        return False
 
-def point_in_tri(p, tri):
-    v0, v1, v2 = tri[1]-tri[0], tri[2]-tri[0], p-tri[0]
-    d00, d01, d11 = np.dot(v0,v0), np.dot(v0,v1), np.dot(v1,v1)
-    d20, d21 = np.dot(v2,v0), np.dot(v2,v1)
-    denom = d00*d11 - d01*d01
-    if abs(denom) < eps:
+    # Return False if triangles just share an edge (and are not coplanar)
+    def share_edge(t1, t2):
+        for i in range(3):
+            a1, a2 = t1[i], t1[(i+1)%3]
+            for j in range(3):
+                b1, b2 = t2[j], t2[(j+1)%3]
+                if (np.linalg.norm(a1-b1)<eps and np.linalg.norm(a2-b2)<eps) or (np.linalg.norm(a1-b2)<eps and np.linalg.norm(a2-b1)<eps):
+                    return True
         return False
-    v = (d11*d20 - d01*d21)/denom
-    w = (d00*d21 - d01*d20)/denom
-    u = 1-v-w
-    return (u > eps) and (v > eps) and (w > eps)
-
-def share_vertex_or_edge(A, B):
-    return any(np.linalg.norm(a-b)<eps for a in A for b in B)
-
-def tri_tri_intersect(a, b):
-    # Fast bounding box check
-    min_a = np.min(a, axis=0)
-    max_a = np.max(a, axis=0)
-    min_b = np.min(b, axis=0)
-    max_b = np.max(b, axis=0)
-    if np.any(max_a < min_b) or np.any(max_b < min_a):
+    def is_coplanar(t1, t2):
+        n1 = np.cross(t1[1]-t1[0], t1[2]-t1[0])
+        n2 = np.cross(t2[1]-t2[0], t2[2]-t2[0])
+        n1 = n1 / np.linalg.norm(n1)
+        n2 = n2 / np.linalg.norm(n2)
+        return np.linalg.norm(n1-n2) < eps or np.linalg.norm(n1+n2) < eps
+    if share_edge(tri1, tri2) and not is_coplanar(tri1, tri2):
         return False
-    V, U = a, b
-    N1, N2 = np.cross(V[1]-V[0], V[2]-V[0]), np.cross(U[1]-U[0], U[2]-U[0])
-    d1, d2 = -np.dot(N1, V[0]), -np.dot(N2, U[0])
-    du = [np.dot(N1, u)+d1 for u in U]
-    dv = [np.dot(N2, v)+d2 for v in V]
-    du = [0.0 if abs(x)<eps else x for x in du]
-    dv = [0.0 if abs(x)<eps else x for x in dv]
-    if all(x*y>0 for x,y in [(du[0],du[1]),(du[0],du[2])]): return False
-    if all(x*y>0 for x,y in [(dv[0],dv[1]),(dv[0],dv[2])]): return False
-    found = any(edge_edge(*ea,*eb) for ea in [(V[0],V[1]),(V[1],V[2]),(V[2],V[0])] for eb in [(U[0],U[1]),(U[1],U[2]),(U[2],U[0])])
-    found |= any(point_in_tri(p, U) for p in V)
-    found |= any(point_in_tri(p, V) for p in U)
-    if found and not share_vertex_or_edge(V, U): return True
-    return False
+
+    # Use trimesh for intersection
+    mesh1 = trimesh.Trimesh(vertices=tri1, faces=[[0,1,2]], process=False)
+    mesh2 = trimesh.Trimesh(vertices=tri2, faces=[[0,1,2]], process=False)
+    inter = mesh1.intersection(mesh2)
+    # If intersection mesh has faces, triangles intersect
+    return inter.faces.shape[0] > 0
 
 def main():
     if len(sys.argv) < 2:
@@ -73,8 +86,8 @@ def main():
         for j in range(i+1, n):
             if tri_tri_intersect(triangles[i], triangles[j]):
                 print("false")
-                # print("Triangle 1:", triangles[i])
-                # print("Triangle 2:", triangles[j])
+                print("Triangle 1:", triangles[i])
+                print("Triangle 2:", triangles[j])
                 return
     print("true")
 
